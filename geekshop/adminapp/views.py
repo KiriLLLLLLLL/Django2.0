@@ -1,4 +1,4 @@
- from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect
 from django.urls import reverse
 
 from authapp.forms import ShopUserRegisterForm
@@ -7,9 +7,11 @@ from authapp.models import ShopUser
 from django.shortcuts import get_object_or_404, render
 from mainapp.models import ProductCategory, Product
 from django.contrib.auth.decorators import user_passes_test
-from django.views.generic import ListView
+from django.views.generic import ListView, CreateView
+from django.contrib.auth.mixins import LoginRequiredMixin
 
-@user_passes_test(lambda u: u.is_superuser)
+
+
 #def users(request):
 #   title = 'админка/пользователи'
 #
@@ -22,29 +24,52 @@ from django.views.generic import ListView
 
 #    return render(request, 'adminapp/users.html', context)
 
-class UserListView(ListView):
+class UserListView(LoginRequiredMixin, ListView):
     model = ShopUser
     template_name = 'adminapp/users.html'
     context_object_name = 'objects'
 
-@user_passes_test(lambda u: u.is_superuser)
-def user_create(request):
-    title = 'пользователи/создание'
+     def get_queryset(self):
+        return ShopUser.objects.all().order_by('-is_active', '-is_superuser', 'is_staff', 'username')
+    def get_context_data(self, *, object_list=None, **kwargs):
+        context = super(UserListView, self).get_context_data()
+        title = 'админка/пользователи'
+        context.update({'title': title})
 
-    if request.method == 'POST':
-        user_form = ShopUserRegisterForm(request.POST, request.FILES)
-        if user_form.is_valid():
-            user_form.save()
-            return HttpResponseRedirect(reverse('admin_staff:users'))
-    else:
-        user_form = ShopUserRegisterForm()
+        return context
 
-    context = {
-        'title': title,
-        'update_form': user_form
-    }
 
-    return render(request, 'adminapp/user_update.html', context)
+# def user_create(request):
+#     title = 'пользователи/создание'
+#
+#     if request.method == 'POST':
+#         user_form = ShopUserRegisterForm(request.POST, request.FILES)
+#         if user_form.is_valid():
+#             user_form.save()
+#             return HttpResponseRedirect(reverse('admin_staff:users'))
+#     else:
+#         user_form = ShopUserRegisterForm()
+#
+#     context = {
+#         'title': title,
+#         'update_form': user_form
+#     }
+#
+#     return render(request, 'adminapp/user_update.html', context)
+
+class UserCreateView(LoginRequiredMixin, CreateView):
+    model = ShopUser
+    template_name = 'adminapp/user_update.html'
+    success_url = reverse_lazy('admin_staff:users')
+    form_class = ShopUserRegisterForm
+
+    def get_context_data(self):
+        context = super(UserCreateView, self).get_context_data()
+        title = 'пользователи/создание'
+        context.update({'title': title})
+
+        return context
+
 
 @user_passes_test(lambda u: u.is_superuser)
 def user_update(request, pk):
@@ -200,17 +225,22 @@ def product_create(request, pk):
     return render(request, 'adminapp/product_update.html', context)
 
 
-@user_passes_test(lambda u: u.is_superuser)
-def product_read(request, pk):
-    title = 'продукты/подробнее'
-    product = get_object_or_404(Product, pk=pk)
-    context = {
-        'title': title,
-        'product': product,
+# @user_passes_test(lambda u: u.is_superuser)
+# def product_read(request, pk):
+#     title = 'продукты/подробнее'
+#     product = get_object_or_404(Product, pk=pk)
+#     context = {
+#         'title': title,
+#         'product': product,
+#
+#     }
+#
+#     return render(request, 'adminapp/product_read.html', context)
 
-    }
+class ProductDetailView(LoginRequiredMixin, DetailView):
+    model = Product
+    template_name = 'adminapp/product_read.html'
 
-    return render(request, 'adminapp/product_read.html', context)
 
 @user_passes_test(lambda u: u.is_superuser)
 def product_update(request, pk):
